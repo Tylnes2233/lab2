@@ -1,21 +1,25 @@
 export type SlotType = 'helmet' | 'armor' | 'weapon' | 'boots'
 
-export interface EquipmentItem {
-  id: number
-  name: string
-  slot: SlotType
+export interface EquipmentStats {
   attack: number
   defense: number
   speed: number
-  weight: number
 }
 
-export type EquippedGear = Record<SlotType, EquipmentItem | null>
+export interface EquipmentItem {
+  id: string
+  name: string
+  slot: SlotType
+  weight: number
+  stats: EquipmentStats
+  rarity: 'common' | 'rare' | 'epic' | 'legendary'
+}
+
+export type EquippedSlots = Record<SlotType, EquipmentItem | null>
 
 export interface StatDiff {
   attack: number
   defense: number
   speed: number
   weight: number
-  replacingName: string | null
 }

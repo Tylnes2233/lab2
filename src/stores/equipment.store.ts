@@ -1,151 +1,223 @@
-import { ref, computed, watch, readonly } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { defineStore } from 'pinia'
-import type { EquipmentItem, EquippedGear, SlotType } from '../types'
+import type {
+  EquipmentItem,
+  EquipmentStats,
+  EquippedSlots,
+  SlotType
+} from '../types'
 
-const STORAGE_KEY = 'rpg_equipment_pinia_store_v1'
+const STORAGE_KEY = 'rpg_equipment_builder_v1'
 
-const initialItems: EquipmentItem[] = [
-  { id: 1, name: 'Шолом Новобранця', slot: 'helmet', attack: 0, defense: 6, speed: 0, weight: 3 },
-  { id: 2, name: 'Шолом Тіні', slot: 'helmet', attack: 4, defense: 4, speed: 3, weight: 2 },
-  { id: 3, name: 'Важкий Шолом Лицаря', slot: 'helmet', attack: 0, defense: 14, speed: -2, weight: 7 },
-  { id: 4, name: 'Шкіряний Нагрудник', slot: 'armor', attack: 2, defense: 10, speed: 2, weight: 6 },
-  { id: 5, name: 'Латний Панцир', slot: 'armor', attack: 0, defense: 26, speed: -5, weight: 18 },
-  { id: 6, name: 'Мантія Слідопита', slot: 'armor', attack: 5, defense: 8, speed: 6, weight: 4 },
-  { id: 7, name: 'Залізний Меч', slot: 'weapon', attack: 15, defense: 2, speed: 0, weight: 5 },
-  { id: 8, name: 'Дворучна Сокира', slot: 'weapon', attack: 28, defense: 0, speed: -4, weight: 14 },
-  { id: 9, name: 'Парні Кинджали', slot: 'weapon', attack: 12, defense: 0, speed: 8, weight: 2 },
-  { id: 10, name: 'Чоботи Мандрівника', slot: 'boots', attack: 0, defense: 4, speed: 7, weight: 2 },
-  { id: 11, name: 'Залізні Сабатони', slot: 'boots', attack: 1, defense: 11, speed: -3, weight: 8 }
+const BASE_STATS: EquipmentStats = {
+  attack: 15,
+  defense: 10,
+  speed: 12
+}
+
+const MAX_CARRY_WEIGHT = 40
+
+const initialCatalog: EquipmentItem[] = [
+  {
+    id: 'helm-leather',
+    name: 'Шкіряний каптур слідопита',
+    slot: 'helmet',
+    weight: 2.5,
+    stats: { attack: 2, defense: 4, speed: 2 },
+    rarity: 'common'
+  },
+  {
+    id: 'helm-steel',
+    name: 'Шолом залізної гвардії',
+    slot: 'helmet',
+    weight: 7.0,
+    stats: { attack: 0, defense: 14, speed: -3 },
+    rarity: 'rare'
+  },
+  {
+    id: 'helm-dragon',
+    name: 'Корона попелястого дракона',
+    slot: 'helmet',
+    weight: 5.5,
+    stats: { attack: 10, defense: 16, speed: 1 },
+    rarity: 'legendary'
+  },
+  {
+    id: 'armor-brigandine',
+    name: 'Бригантина найманця',
+    slot: 'armor',
+    weight: 10.0,
+    stats: { attack: 3, defense: 15, speed: 0 },
+    rarity: 'common'
+  },
+  {
+    id: 'armor-plate',
+    name: 'Важкі лицарські лати',
+    slot: 'armor',
+    weight: 22.0,
+    stats: { attack: 0, defense: 32, speed: -6 },
+    rarity: 'epic'
+  },
+  {
+    id: 'armor-shadow',
+    name: 'Плащ нічного клинка',
+    slot: 'armor',
+    weight: 6.5,
+    stats: { attack: 12, defense: 11, speed: 6 },
+    rarity: 'rare'
+  },
+  {
+    id: 'weapon-dagger',
+    name: 'Парні кинджали тиші',
+    slot: 'weapon',
+    weight: 3.0,
+    stats: { attack: 16, defense: 1, speed: 5 },
+    rarity: 'rare'
+  },
+  {
+    id: 'weapon-sword',
+    name: 'Полуторний меч паладина',
+    slot: 'weapon',
+    weight: 8.5,
+    stats: { attack: 24, defense: 5, speed: -1 },
+    rarity: 'epic'
+  },
+  {
+    id: 'weapon-greataxe',
+    name: 'Дворучна сокира берсерка',
+    slot: 'weapon',
+    weight: 16.5,
+    stats: { attack: 38, defense: -4, speed: -5 },
+    rarity: 'legendary'
+  },
+  {
+    id: 'boots-runner',
+    name: 'Чоботи вітру',
+    slot: 'boots',
+    weight: 2.0,
+    stats: { attack: 1, defense: 3, speed: 8 },
+    rarity: 'rare'
+  },
+  {
+    id: 'boots-iron',
+    name: 'Ковані сабатони бастіону',
+    slot: 'boots',
+    weight: 6.5,
+    stats: { attack: 0, defense: 11, speed: -2 },
+    rarity: 'common'
+  }
 ]
 
-const createEmptyGear = (): EquippedGear => ({
-  helmet: null,
-  armor: null,
-  weapon: null,
-  boots: null
-})
+function createEmptySlots(): EquippedSlots {
+  return {
+    helmet: null,
+    armor: null,
+    weapon: null,
+    boots: null
+  }
+}
 
 export const useEquipmentStore = defineStore('equipment', () => {
-  const baseStats = {
-    attack: 10,
-    defense: 10,
-    speed: 15
-  }
+  const catalog = ref<EquipmentItem[]>(initialCatalog)
+  const equipped = ref<EquippedSlots>(createEmptySlots())
 
-  const maxWeight = 40
-
-  const _equipped = ref<EquippedGear>(createEmptyGear())
-  const _inventory = ref<EquipmentItem[]>([...initialItems])
-
-  const savedRaw = localStorage.getItem(STORAGE_KEY)
-  if (savedRaw) {
+  function loadFromStorage() {
     try {
-      const parsed = JSON.parse(savedRaw) as {
-        equipped: EquippedGear
-        inventory: EquipmentItem[]
-      }
-      if (parsed.equipped && Array.isArray(parsed.inventory)) {
-        _equipped.value = parsed.equipped
-        _inventory.value = parsed.inventory
-      }
+      const raw = localStorage.getItem(STORAGE_KEY)
+      if (!raw) return
+      const parsed = JSON.parse(raw) as Partial<Record<SlotType, string | null>>
+      const restored = createEmptySlots()
+
+      ;(Object.keys(restored) as SlotType[]).forEach((slot) => {
+        const itemId = parsed[slot]
+        if (itemId) {
+          restored[slot] =
+            catalog.value.find((item) => item.id === itemId && item.slot === slot) || null
+        }
+      })
+
+      equipped.value = restored
     } catch {
-      localStorage.removeItem(STORAGE_KEY)
+      equipped.value = createEmptySlots()
     }
   }
 
+  loadFromStorage()
+
   watch(
-    [_equipped, _inventory],
-    () => {
-      localStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify({
-          equipped: _equipped.value,
-          inventory: _inventory.value
-        })
-      )
+    equipped,
+    (current) => {
+      const serialized: Record<SlotType, string | null> = {
+        helmet: current.helmet?.id ?? null,
+        armor: current.armor?.id ?? null,
+        weapon: current.weapon?.id ?? null,
+        boots: current.boots?.id ?? null
+      }
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(serialized))
     },
     { deep: true }
   )
 
-  const equipped = readonly(_equipped)
-  const inventory = readonly(_inventory)
+  const baseStats = computed(() => BASE_STATS)
+  const maxWeight = computed(() => MAX_CARRY_WEIGHT)
 
-  const bonuses = computed(() => {
-    let attack = 0
-    let defense = 0
-    let speed = 0
-
-    const slots: SlotType[] = ['helmet', 'armor', 'weapon', 'boots']
-    for (const slot of slots) {
-      const item = _equipped.value[slot]
-      if (item) {
-        attack += item.attack
-        defense += item.defense
-        speed += item.speed
-      }
-    }
-
-    return { attack, defense, speed }
+  const equippedItemsList = computed<EquipmentItem[]>(() => {
+    return Object.values(equipped.value).filter((item): item is EquipmentItem => item !== null)
   })
 
-  const currentWeight = computed(() => {
-    let total = 0
-    const slots: SlotType[] = ['helmet', 'armor', 'weapon', 'boots']
-    for (const slot of slots) {
-      const item = _equipped.value[slot]
-      if (item) {
-        total += item.weight
-      }
-    }
-    return total
+  const backpackItems = computed<EquipmentItem[]>(() => {
+    const equippedIds = new Set(equippedItemsList.value.map((i) => i.id))
+    return catalog.value.filter((item) => !equippedIds.has(item.id))
   })
 
-  const isOverloaded = computed(() => currentWeight.value > maxWeight)
+  const currentWeight = computed<number>(() => {
+    const sum = equippedItemsList.value.reduce((acc, item) => acc + item.weight, 0)
+    return Number(sum.toFixed(1))
+  })
 
-  const totalStats = computed(() => {
-    const rawSpeed = Math.max(0, baseStats.speed + bonuses.value.speed)
+  const isOverloaded = computed<boolean>(() => currentWeight.value > MAX_CARRY_WEIGHT)
+
+  const bonuses = computed<EquipmentStats>(() => {
+    return equippedItemsList.value.reduce(
+      (acc, item) => ({
+        attack: acc.attack + item.stats.attack,
+        defense: acc.defense + item.stats.defense,
+        speed: acc.speed + item.stats.speed
+      }),
+      { attack: 0, defense: 0, speed: 0 }
+    )
+  })
+
+  const totalStats = computed<EquipmentStats>(() => {
+    const rawSpeed = Math.max(0, BASE_STATS.speed + bonuses.value.speed)
     return {
-      attack: Math.max(0, baseStats.attack + bonuses.value.attack),
-      defense: Math.max(0, baseStats.defense + bonuses.value.defense),
+      attack: Math.max(0, BASE_STATS.attack + bonuses.value.attack),
+      defense: Math.max(0, BASE_STATS.defense + bonuses.value.defense),
       speed: isOverloaded.value ? 0 : rawSpeed
     }
   })
 
   function equipItem(item: EquipmentItem) {
-    const slot = item.slot
-    const previousItem = _equipped.value[slot]
-
-    _inventory.value = _inventory.value.filter((i) => i.id !== item.id)
-
-    if (previousItem) {
-      _inventory.value.push(previousItem)
-    }
-
-    _equipped.value[slot] = item
+    equipped.value[item.slot] = item
   }
 
   function unequipSlot(slot: SlotType) {
-    const item = _equipped.value[slot]
-    if (!item) return
-
-    _equipped.value[slot] = null
-    _inventory.value.push(item)
+    equipped.value[slot] = null
   }
 
   function resetBuild() {
-    _equipped.value = createEmptyGear()
-    _inventory.value = [...initialItems]
+    equipped.value = createEmptySlots()
     localStorage.removeItem(STORAGE_KEY)
   }
 
   return {
+    equipped,
     baseStats,
     maxWeight,
-    equipped,
-    inventory,
-    bonuses,
+    backpackItems,
     currentWeight,
     isOverloaded,
+    bonuses,
     totalStats,
     equipItem,
     unequipSlot,

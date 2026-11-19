@@ -1,171 +1,120 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
+import { Sword, Shield, Wind, Weight, AlertTriangle, RotateCcw } from 'lucide-vue-next'
 import { useEquipmentStore } from '../stores/equipment.store'
+import { useStatComparison } from '../composables/useStatComparison'
 
 const store = useEquipmentStore()
-const { bonuses, currentWeight, isOverloaded, totalStats } = storeToRefs(store)
-const { baseStats, maxWeight, resetBuild } = store
-
-const formatBonus = (val: number) => {
-  return val >= 0 ? `+${val}` : `${val}`
-}
+const { baseStats, bonuses, totalStats, currentWeight, maxWeight, isOverloaded } = storeToRefs(store)
+const { formatDelta } = useStatComparison()
 </script>
 
 <template>
-  <div class="stats-panel" :class="{ overloaded: isOverloaded }">
-    <div class="header">
-      <h2>Характеристики героя</h2>
-      <span class="status-badge" :class="isOverloaded ? 'danger' : 'normal'">
-        {{ isOverloaded ? 'Перевантажений' : 'Боєздатний' }}
-      </span>
+  <div class="card bg-base-100 shadow-xl border border-base-300">
+    <div class="card-body space-y-4">
+      <div class="flex items-center justify-between">
+        <h2 class="card-title text-lg">Характеристики героя</h2>
+        <span
+          class="badge font-bold"
+          :class="isOverloaded ? 'badge-error' : 'badge-success'"
+        >
+          {{ isOverloaded ? 'Перевантажений' : 'Боєздатний' }}
+        </span>
+      </div>
+
+      <div class="space-y-3">
+        <div class="p-3 rounded-xl bg-base-200 flex items-center justify-between">
+          <div class="flex items-center gap-2 font-semibold text-sm">
+            <Sword class="w-4 h-4 text-error" />
+            <span>Атака</span>
+          </div>
+          <div class="text-sm font-mono">
+            <span>{{ baseStats.attack }}</span>
+            <span
+              class="mx-1 font-bold"
+              :class="bonuses.attack >= 0 ? 'text-success' : 'text-error'"
+            >
+              ({{ formatDelta(bonuses.attack) }})
+            </span>
+            <span>=</span>
+            <span class="ml-1 text-base font-extrabold text-primary">{{ totalStats.attack }}</span>
+          </div>
+        </div>
+
+        <div class="p-3 rounded-xl bg-base-200 flex items-center justify-between">
+          <div class="flex items-center gap-2 font-semibold text-sm">
+            <Shield class="w-4 h-4 text-info" />
+            <span>Захист</span>
+          </div>
+          <div class="text-sm font-mono">
+            <span>{{ baseStats.defense }}</span>
+            <span
+              class="mx-1 font-bold"
+              :class="bonuses.defense >= 0 ? 'text-success' : 'text-error'"
+            >
+              ({{ formatDelta(bonuses.defense) }})
+            </span>
+            <span>=</span>
+            <span class="ml-1 text-base font-extrabold text-primary">{{ totalStats.defense }}</span>
+          </div>
+        </div>
+
+        <div class="p-3 rounded-xl bg-base-200 flex items-center justify-between">
+          <div class="flex items-center gap-2 font-semibold text-sm">
+            <Wind class="w-4 h-4 text-success" />
+            <span>Швидкість</span>
+          </div>
+          <div class="text-sm font-mono">
+            <span>{{ baseStats.speed }}</span>
+            <span
+              class="mx-1 font-bold"
+              :class="bonuses.speed >= 0 ? 'text-success' : 'text-error'"
+            >
+              ({{ formatDelta(bonuses.speed) }})
+            </span>
+            <span>=</span>
+            <span
+              class="ml-1 text-base font-extrabold"
+              :class="isOverloaded ? 'text-error' : 'text-primary'"
+            >
+              {{ totalStats.speed }}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div class="space-y-1.5 pt-2 border-t border-base-200">
+        <div class="flex justify-between text-xs font-semibold">
+          <span class="flex items-center gap-1">
+            <Weight class="w-4 h-4" />
+            Вага спорядження
+          </span>
+          <span :class="{ 'text-error font-bold': isOverloaded }">
+            {{ currentWeight }} / {{ maxWeight }} кг
+          </span>
+        </div>
+
+        <progress
+          class="progress w-full"
+          :class="isOverloaded ? 'progress-error' : 'progress-primary'"
+          :value="currentWeight"
+          :max="maxWeight"
+        ></progress>
+
+        <div v-if="isOverloaded" class="alert alert-error py-2 text-xs mt-2 flex items-center gap-2">
+          <AlertTriangle class="w-4 h-4 shrink-0" />
+          <span>Ліміт ваги перевищено! Швидкість персонажа знижена до 0.</span>
+        </div>
+      </div>
+
+      <button
+        type="button"
+        class="btn btn-outline btn-error btn-sm w-full gap-2"
+        @click="store.resetBuild()"
+      >
+        <RotateCcw class="w-4 h-4" />
+        Скинути білд
+      </button>
     </div>
-
-    <div class="stat-list">
-      <div class="stat-row">
-        <span>Атака (Attack):</span>
-        <strong>
-          {{ baseStats.attack }} ({{ formatBonus(bonuses.attack) }}) = {{ totalStats.attack }}
-        </strong>
-      </div>
-
-      <div class="stat-row">
-        <span>Захист (Defense):</span>
-        <strong>
-          {{ baseStats.defense }} ({{ formatBonus(bonuses.defense) }}) = {{ totalStats.defense }}
-        </strong>
-      </div>
-
-      <div class="stat-row">
-        <span>Швидкість (Speed):</span>
-        <strong :class="{ 'zero-speed': isOverloaded }">
-          {{ baseStats.speed }} ({{ formatBonus(bonuses.speed) }}) = {{ totalStats.speed }}
-        </strong>
-      </div>
-    </div>
-
-    <div class="weight-section">
-      <div class="weight-header">
-        <span>Вага спорядження:</span>
-        <strong :class="{ 'text-danger': isOverloaded }">
-          {{ currentWeight }} / {{ maxWeight }} кг
-        </strong>
-      </div>
-      <div class="progress-bar">
-        <div
-          class="progress-fill"
-          :class="{ 'fill-danger': isOverloaded }"
-          :style="{ width: Math.min(100, (currentWeight / maxWeight) * 100) + '%' }"
-        ></div>
-      </div>
-    </div>
-
-    <button class="reset-btn" @click="resetBuild">Скинути білд</button>
   </div>
 </template>
-
-<style scoped>
-.stats-panel {
-  background: #ffffff;
-  border: 1px solid #cbd5e1;
-  border-radius: 10px;
-  padding: 20px;
-  color: #0f172a;
-}
-
-.stats-panel.overloaded {
-  border-color: #ef4444;
-  background: #fef2f2;
-}
-
-.header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-}
-
-.header h2 {
-  margin: 0;
-  font-size: 18px;
-}
-
-.status-badge {
-  padding: 4px 10px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.status-badge.normal {
-  background: #dcfce7;
-  color: #166534;
-}
-
-.status-badge.danger {
-  background: #fee2e2;
-  color: #b91c1c;
-}
-
-.stat-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-bottom: 18px;
-}
-
-.stat-row {
-  display: flex;
-  justify-content: space-between;
-  font-size: 15px;
-  padding-bottom: 6px;
-  border-bottom: 1px solid #e2e8f0;
-}
-
-.zero-speed,
-.text-danger {
-  color: #dc2626;
-}
-
-.weight-section {
-  margin-bottom: 18px;
-}
-
-.weight-header {
-  display: flex;
-  justify-content: space-between;
-  font-size: 14px;
-  margin-bottom: 6px;
-}
-
-.progress-bar {
-  height: 10px;
-  background: #e2e8f0;
-  border-radius: 6px;
-  overflow: hidden;
-}
-
-.progress-fill {
-  height: 100%;
-  background: #2563eb;
-  transition: width 0.2s ease;
-}
-
-.progress-fill.fill-danger {
-  background: #dc2626;
-}
-
-.reset-btn {
-  width: 100%;
-  padding: 10px;
-  background: #475569;
-  color: #ffffff;
-  border: none;
-  border-radius: 6px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.reset-btn:hover {
-  background: #334155;
-}
-</style>
