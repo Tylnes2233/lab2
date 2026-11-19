@@ -1,16 +1,10 @@
 <script setup lang="ts">
-defineProps<{
-  baseStats: { attack: number; defense: number; speed: number }
-  bonuses: { attack: number; defense: number; speed: number }
-  totalStats: { attack: number; defense: number; speed: number }
-  currentWeight: number
-  maxWeight: number
-  isOverloaded: boolean
-}>()
+import { storeToRefs } from 'pinia'
+import { useEquipmentStore } from '../stores/equipment.store'
 
-const emit = defineEmits<{
-  (e: 'reset'): void
-}>()
+const store = useEquipmentStore()
+const { bonuses, currentWeight, isOverloaded, totalStats } = storeToRefs(store)
+const { baseStats, maxWeight, resetBuild } = store
 
 const formatBonus = (val: number) => {
   return val >= 0 ? `+${val}` : `${val}`
@@ -65,7 +59,7 @@ const formatBonus = (val: number) => {
       </div>
     </div>
 
-    <button class="reset-btn" @click="emit('reset')">Скинути білд</button>
+    <button class="reset-btn" @click="resetBuild">Скинути білд</button>
   </div>
 </template>
 

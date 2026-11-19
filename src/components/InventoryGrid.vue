@@ -1,38 +1,20 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import type { EquipmentItem, EquippedGear, SlotType } from '../types'
+import { storeToRefs } from 'pinia'
+import { useEquipmentStore } from '../stores/equipment.store'
+import { useStatComparison } from '../composables/useStatComparison'
+import type { SlotType } from '../types'
 
-const props = defineProps<{
-  inventory: EquipmentItem[]
-  equipped: EquippedGear
-}>()
+const store = useEquipmentStore()
+const { inventory } = storeToRefs(store)
+const { equipItem } = store
 
-const emit = defineEmits<{
-  (e: 'equip', item: EquipmentItem): void
-}>()
-
-const hoveredItem = ref<EquipmentItem | null>(null)
+const { hoveredItem, activeDiff, setHoveredItem, formatDelta } = useStatComparison()
 
 const slotLabels: Record<SlotType, string> = {
   helmet: 'Шолом',
   armor: 'Броня',
   weapon: 'Зброя',
   boots: 'Чоботи'
-}
-
-const getDiff = (item: EquipmentItem) => {
-  const current = props.equipped[item.slot]
-  return {
-    attack: item.attack - (current ? current.attack : 0),
-    defense: item.defense - (current ? current.defense : 0),
-    speed: item.speed - (current ? current.speed : 0),
-    weight: item.weight - (current ? current.weight : 0),
-    replacingName: current ? current.name : null
-  }
-}
-
-const formatDiff = (val: number) => {
-  return val > 0 ? `+${val}` : `${val}`
 }
 </script>
 
@@ -45,14 +27,14 @@ const formatDiff = (val: number) => {
       Усі речі зараз одягнені на персонажа.
     </div>
 
-    <div v-else class="items-grid">
+    <TransitionGroup v-else name="list" tag="div" class="items-grid">
       <div
         v-for="item in inventory"
         :key="item.id"
         class="item-card"
-        @mouseenter="hoveredItem = item"
-        @mouseleave="hoveredItem = null"
-        @click="emit('equip', item)"
+        @mouseenter="setHoveredItem(item)"
+        @mouseleave="setHoveredItem(null)"
+        @click="equipItem(item)"
       >
         <div class="card-top">
           <strong>{{ item.name }}</strong>
@@ -66,65 +48,45 @@ const formatDiff = (val: number) => {
           <span>Вага: {{ item.weight }} кг</span>
         </div>
 
-        <div v-if="hoveredItem?.id === item.id" class="diff-tooltip">
+        <div v-if="hoveredItem?.id === item.id && activeDiff" class="diff-tooltip">
           <div class="tooltip-title">
             {{
-              getDiff(item).replacingName
-                ? `Заміна: ${getDiff(item).replacingName}`
+              activeDiff.replacingName
+                ? `Заміна: ${activeDiff.replacingName}`
                 : 'У порожній слот'
             }}
           </div>
 
           <div class="diff-row">
             <span>Атака:</span>
-            <span
-              :class="{
-                pos: getDiff(item).attack > 0,
-                neg: getDiff(item).attack < 0
-              }"
-            >
-              {{ formatDiff(getDiff(item).attack) }}
+            <span :class="{ pos: activeDiff.attack > 0, neg: activeDiff.attack < 0 }">
+              {{ formatDelta(activeDiff.attack) }}
             </span>
           </div>
 
           <div class="diff-row">
             <span>Захист:</span>
-            <span
-              :class="{
-                pos: getDiff(item).defense > 0,
-                neg: getDiff(item).defense < 0
-              }"
-            >
-              {{ formatDiff(getDiff(item).defense) }}
+            <span :class="{ pos: activeDiff.defense > 0, neg: activeDiff.defense < 0 }">
+              {{ formatDelta(activeDiff.defense) }}
             </span>
           </div>
 
           <div class="diff-row">
             <span>Швидкість:</span>
-            <span
-              :class="{
-                pos: getDiff(item).speed > 0,
-                neg: getDiff(item).speed < 0
-              }"
-            >
-              {{ formatDiff(getDiff(item).speed) }}
+            <span :class="{ pos: activeDiff.speed > 0, neg: activeDiff.speed < 0 }">
+              {{ formatDelta(activeDiff.speed) }}
             </span>
           </div>
 
           <div class="diff-row">
             <span>Вага:</span>
-            <span
-              :class="{
-                pos: getDiff(item).weight < 0,
-                neg: getDiff(item).weight > 0
-              }"
-            >
-              {{ formatDiff(getDiff(item).weight) }} кг
+            <span :class="{ pos: activeDiff.weight < 0, neg: activeDiff.weight > 0 }">
+              {{ formatDelta(activeDiff.weight) }} кг
             </span>
           </div>
         </div>
       </div>
-    </div>
+    </TransitionGroup>
   </div>
 </template>
 
@@ -169,7 +131,7 @@ const formatDiff = (val: number) => {
   padding: 12px;
   background: #f8fafc;
   cursor: pointer;
-  transition: border-color 0.15s ease, transform 0.1s ease;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
 }
 
 .item-card:hover {
@@ -243,5 +205,21 @@ const formatDiff = (val: number) => {
 .neg {
   color: #f87171;
   font-weight: 700;
+}
+
+.list-move,
+.list-enter-active,
+.list-leave-active {
+  transition: all 0.25s ease;
+}
+
+.list-enter-from,
+.list-leave-to {
+  opacity: 0;
+  transform: scale(0.95);
+}
+
+.list-leave-active {
+  position: absolute;
 }
 </style>

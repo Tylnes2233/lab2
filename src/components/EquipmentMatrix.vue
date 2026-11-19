@@ -1,13 +1,11 @@
 <script setup lang="ts">
-import type { EquippedGear, SlotType } from '../types'
+import { storeToRefs } from 'pinia'
+import { useEquipmentStore } from '../stores/equipment.store'
+import type { SlotType } from '../types'
 
-defineProps<{
-  equipped: EquippedGear
-}>()
-
-const emit = defineEmits<{
-  (e: 'unequip', slot: SlotType): void
-}>()
+const store = useEquipmentStore()
+const { equipped } = storeToRefs(store)
+const { unequipSlot } = store
 
 const slotConfig: { key: SlotType; label: string; placeholder: string }[] = [
   { key: 'helmet', label: 'Шолом (Helmet)', placeholder: 'Слот шолома порожній' },
@@ -28,7 +26,7 @@ const slotConfig: { key: SlotType; label: string; placeholder: string }[] = [
         :key="slot.key"
         class="slot-box"
         :class="{ filled: equipped[slot.key] !== null }"
-        @click="equipped[slot.key] && emit('unequip', slot.key)"
+        @click="equipped[slot.key] && unequipSlot(slot.key)"
       >
         <div class="slot-title">{{ slot.label }}</div>
 

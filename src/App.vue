@@ -1,22 +1,7 @@
 <script setup lang="ts">
-import { useEquipment } from './composables/useEquipment'
 import CharacterStatsWidget from './components/CharacterStatsWidget.vue'
 import EquipmentMatrix from './components/EquipmentMatrix.vue'
 import InventoryGrid from './components/InventoryGrid.vue'
-
-const {
-  baseStats,
-  maxWeight,
-  equipped,
-  inventory,
-  bonuses,
-  currentWeight,
-  isOverloaded,
-  totalStats,
-  equipItem,
-  unequipSlot,
-  resetBuild
-} = useEquipment()
 </script>
 
 <template>
@@ -26,25 +11,12 @@ const {
     </header>
 
     <div class="top-grid">
-      <CharacterStatsWidget
-        :base-stats="baseStats"
-        :bonuses="bonuses"
-        :total-stats="totalStats"
-        :current-weight="currentWeight"
-        :max-weight="maxWeight"
-        :is-overloaded="isOverloaded"
-        @reset="resetBuild"
-      />
-
-      <EquipmentMatrix :equipped="equipped" @unequip="unequipSlot" />
+      <CharacterStatsWidget />
+      <EquipmentMatrix />
     </div>
 
     <div class="bottom-section">
-      <InventoryGrid
-        :inventory="inventory"
-        :equipped="equipped"
-        @equip="equipItem"
-      />
+      <InventoryGrid />
     </div>
   </div>
 </template>

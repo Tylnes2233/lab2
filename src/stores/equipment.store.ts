@@ -1,7 +1,8 @@
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, readonly } from 'vue'
+import { defineStore } from 'pinia'
 import type { EquipmentItem, EquippedGear, SlotType } from '../types'
 
-const STORAGE_KEY = 'rpg_equipment_build_v1'
+const STORAGE_KEY = 'rpg_equipment_pinia_store_v1'
 
 const initialItems: EquipmentItem[] = [
   { id: 1, name: 'Шолом Новобранця', slot: 'helmet', attack: 0, defense: 6, speed: 0, weight: 3 },
@@ -17,14 +18,14 @@ const initialItems: EquipmentItem[] = [
   { id: 11, name: 'Залізні Сабатони', slot: 'boots', attack: 1, defense: 11, speed: -3, weight: 8 }
 ]
 
-const emptyGear = (): EquippedGear => ({
+const createEmptyGear = (): EquippedGear => ({
   helmet: null,
   armor: null,
   weapon: null,
   boots: null
 })
 
-export function useEquipment() {
+export const useEquipmentStore = defineStore('equipment', () => {
   const baseStats = {
     attack: 10,
     defense: 10,
@@ -33,16 +34,19 @@ export function useEquipment() {
 
   const maxWeight = 40
 
-  const equipped = ref<EquippedGear>(emptyGear())
-  const inventory = ref<EquipmentItem[]>([...initialItems])
+  const _equipped = ref<EquippedGear>(createEmptyGear())
+  const _inventory = ref<EquipmentItem[]>([...initialItems])
 
   const savedRaw = localStorage.getItem(STORAGE_KEY)
   if (savedRaw) {
     try {
-      const parsed = JSON.parse(savedRaw) as { equipped: EquippedGear; inventory: EquipmentItem[] }
+      const parsed = JSON.parse(savedRaw) as {
+        equipped: EquippedGear
+        inventory: EquipmentItem[]
+      }
       if (parsed.equipped && Array.isArray(parsed.inventory)) {
-        equipped.value = parsed.equipped
-        inventory.value = parsed.inventory
+        _equipped.value = parsed.equipped
+        _inventory.value = parsed.inventory
       }
     } catch {
       localStorage.removeItem(STORAGE_KEY)
@@ -50,18 +54,21 @@ export function useEquipment() {
   }
 
   watch(
-    [equipped, inventory],
+    [_equipped, _inventory],
     () => {
       localStorage.setItem(
         STORAGE_KEY,
         JSON.stringify({
-          equipped: equipped.value,
-          inventory: inventory.value
+          equipped: _equipped.value,
+          inventory: _inventory.value
         })
       )
     },
     { deep: true }
   )
+
+  const equipped = readonly(_equipped)
+  const inventory = readonly(_inventory)
 
   const bonuses = computed(() => {
     let attack = 0
@@ -70,7 +77,7 @@ export function useEquipment() {
 
     const slots: SlotType[] = ['helmet', 'armor', 'weapon', 'boots']
     for (const slot of slots) {
-      const item = equipped.value[slot]
+      const item = _equipped.value[slot]
       if (item) {
         attack += item.attack
         defense += item.defense
@@ -85,7 +92,7 @@ export function useEquipment() {
     let total = 0
     const slots: SlotType[] = ['helmet', 'armor', 'weapon', 'boots']
     for (const slot of slots) {
-      const item = equipped.value[slot]
+      const item = _equipped.value[slot]
       if (item) {
         total += item.weight
       }
@@ -104,30 +111,30 @@ export function useEquipment() {
     }
   })
 
-  const equipItem = (item: EquipmentItem) => {
+  function equipItem(item: EquipmentItem) {
     const slot = item.slot
-    const currentlyEquipped = equipped.value[slot]
+    const previousItem = _equipped.value[slot]
 
-    inventory.value = inventory.value.filter((i) => i.id !== item.id)
+    _inventory.value = _inventory.value.filter((i) => i.id !== item.id)
 
-    if (currentlyEquipped) {
-      inventory.value.push(currentlyEquipped)
+    if (previousItem) {
+      _inventory.value.push(previousItem)
     }
 
-    equipped.value[slot] = item
+    _equipped.value[slot] = item
   }
 
-  const unequipSlot = (slot: SlotType) => {
-    const item = equipped.value[slot]
+  function unequipSlot(slot: SlotType) {
+    const item = _equipped.value[slot]
     if (!item) return
 
-    equipped.value[slot] = null
-    inventory.value.push(item)
+    _equipped.value[slot] = null
+    _inventory.value.push(item)
   }
 
-  const resetBuild = () => {
-    equipped.value = emptyGear()
-    inventory.value = [...initialItems]
+  function resetBuild() {
+    _equipped.value = createEmptyGear()
+    _inventory.value = [...initialItems]
     localStorage.removeItem(STORAGE_KEY)
   }
 
@@ -144,4 +151,4 @@ export function useEquipment() {
     unequipSlot,
     resetBuild
   }
-}
+})

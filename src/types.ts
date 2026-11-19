@@ -11,3 +11,11 @@ export interface EquipmentItem {
 }
 
 export type EquippedGear = Record<SlotType, EquipmentItem | null>
+
+export interface StatDiff {
+  attack: number
+  defense: number
+  speed: number
+  weight: number
+  replacingName: string | null
+}
